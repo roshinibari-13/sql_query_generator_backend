@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 app = FastAPI(title="AI SQL Query Generator")
 
-client = genai.Client(api_key="GEMINI_API_KEY")
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 schema = """
 Database: college
