@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from google import genai
 from pydantic import BaseModel, Field
+import os
 
 app = FastAPI(title="AI SQL Query Generator")
 
