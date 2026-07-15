@@ -1,67 +1,36 @@
-from fastapi import FastAPI
-from pydantic import BaseModel, Field
-import google.generativeai as genai
-from dotenv import load_dotenv
-import os
+import gradio as gr
+import requests
 
-# Load environment variables
-load_dotenv()
+backend_url = "https://sql-query-generator-backend-1fnk.onrender.com"
 
-# Configure Gemini API
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+def generate_sql(question):
 
-# Create model
-model = genai.GenerativeModel("gemini-2.5-flash")
+    response = requests.post(
+        backend_url,
+        json={"question": question}
+    )
 
-# Create FastAPI app
-app = FastAPI(title="AI SQL Query Generator")
+    if response.status_code == 200:
+        return response.json()["sql"]
+    else:
+        return "Error connecting to backend."
 
-schema = """
-Database: college
+demo = gr.Interface(
+    fn=generate_sql,
+    inputs=gr.Textbox(
+        label="Enter English Description",
+        placeholder="Example: Show all students from CSE with marks above 80",
+        lines=4
+    ),
+    outputs=gr.Textbox(
+        label="Generated SQL Query",
+        lines=8
+    ),
+    title="AI SQL Query Generator"
+)
 
-Table: students
-
-Columns:
-id INT
-name VARCHAR
-branch VARCHAR
-marks INT
-city VARCHAR
-"""
-
-class QueryRequest(BaseModel):
-    question: str = Field(min_length=5, max_length=100)
-
-@app.get("/")
-def home():
-    return {"message": "AI SQL Query Generator API is running!"}
-
-@app.post("/generate-sql")
-def generate_sql(req: QueryRequest):
-
-    prompt = f"""
-You are an SQL expert.
-
-Database Schema:
-{schema}
-
-Convert the following English description into a valid MySQL query.
-
-Question:
-{req.question}
-
-Return ONLY the SQL query.
-"""
-
-    try:
-        response = model.generate_content(prompt)
-
-        return {
-            "question": req.question,
-            "sql": response.text
-        }
-
-    except Exception as e:
-        return {
-            "error": str(e)
-        }
+if __name__ == "__main__":
+    demo.launch(
+        server_name="0.0.0.0",
+        server_port=int(os.environ.get("PORT", 7860))
+    )
