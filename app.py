@@ -1,11 +1,20 @@
 from fastapi import FastAPI
-from google import genai
 from pydantic import BaseModel, Field
+import google.generativeai as genai
+from dotenv import load_dotenv
 import os
 
-app = FastAPI(title="AI SQL Query Generator")
+# Load environment variables
+load_dotenv()
 
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+# Configure Gemini API
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+
+# Create model
+model = genai.GenerativeModel("gemini-2.5-flash")
+
+# Create FastAPI app
+app = FastAPI(title="AI SQL Query Generator")
 
 schema = """
 Database: college
@@ -23,6 +32,9 @@ city VARCHAR
 class QueryRequest(BaseModel):
     question: str = Field(min_length=5, max_length=100)
 
+@app.get("/")
+def home():
+    return {"message": "AI SQL Query Generator API is running!"}
 
 @app.post("/generate-sql")
 def generate_sql(req: QueryRequest):
@@ -41,12 +53,15 @@ Question:
 Return ONLY the SQL query.
 """
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    try:
+        response = model.generate_content(prompt)
 
-    return {
-        "question": req.question,
-        "sql": response.text
-    }
+        return {
+            "question": req.question,
+            "sql": response.text
+        }
+
+    except Exception as e:
+        return {
+            "error": str(e)
+        }
