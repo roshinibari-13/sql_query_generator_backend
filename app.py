@@ -1,36 +1,51 @@
-import gradio as gr
-import requests
+from fastapi import FastAPI
+from google import genai
+from pydantic import BaseModel, Field
 
-backend_url = "https://sql-query-generator-backend-1fnk.onrender.com"
+app = FastAPI(title="AI SQL Query Generator")
 
-def generate_sql(question):
+client = genai.Client(api_key="GEMINI_API_KEY")
 
-    response = requests.post(
-        backend_url,
-        json={"question": question}
+schema = """
+Database: college
+
+Table: students
+
+Columns:
+id INT
+name VARCHAR
+branch VARCHAR
+marks INT
+city VARCHAR
+"""
+
+class QueryRequest(BaseModel):
+    question: str = Field(min_length=5, max_length=100)
+
+
+@app.post("/generate-sql")
+def generate_sql(req: QueryRequest):
+
+    prompt = f"""
+You are an SQL expert.
+
+Database Schema:
+{schema}
+
+Convert the following English description into a valid MySQL query.
+
+Question:
+{req.question}
+
+Return ONLY the SQL query.
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
     )
 
-    if response.status_code == 200:
-        return response.json()["sql"]
-    else:
-        return "Error connecting to backend."
-
-demo = gr.Interface(
-    fn=generate_sql,
-    inputs=gr.Textbox(
-        label="Enter English Description",
-        placeholder="Example: Show all students from CSE with marks above 80",
-        lines=4
-    ),
-    outputs=gr.Textbox(
-        label="Generated SQL Query",
-        lines=8
-    ),
-    title="AI SQL Query Generator"
-)
-
-if __name__ == "__main__":
-    demo.launch(
-        server_name="0.0.0.0",
-        server_port=int(os.environ.get("PORT", 7860))
-    )
+    return {
+        "question": req.question,
+        "sql": response.text
+    }
